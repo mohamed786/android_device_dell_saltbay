@@ -1,0 +1,12 @@
+# merrifield specific SPID based properties
+
+# Intel:Intel:*:Merrifield:SilverRidge:[SV]V-[ABCD]
+on property:ro.boot.spid=0000:0000:*:0004:?000:000[0-7]
+	setprop ro.spid.wifi.nvram vv
+
+# Intel:Intel:*:Merrifield:SaltBay:SB PR*
+on property:ro.boot.spid=0000:0000:*:0004:?000:000[89a-f]
+	setprop ro.spid.wifi.nvram pr
+
+on property:ro.boot.spid=*:*:*:*:*:*
+	setprop ro.spid.merrifield 1

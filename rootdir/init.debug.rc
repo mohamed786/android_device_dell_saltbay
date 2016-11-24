@@ -1,0 +1,74 @@
+# Enable by default android java wakelock logging
+on init
+    mkdir /logs
+    write /proc/sys/kernel/kptr_restrict 2
+
+on early-boot
+    chown system log /logs
+    chmod 0770 /logs
+
+on post-fs
+    mkdir /data/tombstones 0755 system system
+    mkdir /data/system/    0755 system system
+    mkdir /data/system/dropbox 0700 system system
+
+on post-fs-data
+    #mkdir /logs/modemcrash 0775 system system
+    #mkdir /logs/aplogs 0775 system log
+#2014-04-23-ji.wei2@byd.com-modify for log
+    mkdir /data/logs system log
+    chown system log /data/logs
+    chmod 0775 /data/logs
+    mkdir /data/logs/core
+    chown root log /data/logs/core
+    chmod 0755 /data/logs/core
+    mkdir /data/logs/modemcrash 0775 system system
+    mkdir /data/logs/stats 0775 system system
+    mkdir /data/logs/gps 0775 system system
+    mkdir /data/logs/aplogs 0775 system log
+
+on charger
+    # basic networking for "adb root"
+    ifup lo
+    hostname localhost
+    domainname localdomain
+    mount ext4 /dev/block/mmcblk0p7 /logs nosuid nodev barrier=1,data=ordered
+    mkdir /logs/modemcrash 0775 system system
+    mkdir /logs/aplogs 0775 system log
+
+on property:persist.service.apklogfs.enable=1
+    restart apk_logfs
+
+on property:persist.service.apklogfs.enable=0
+    stop apk_logfs
+
+on property:persist.service.crashlog.enable=1
+    restart crashlogd
+
+on property:persist.service.crashlog.enable=0
+    stop crashlogd
+
+# crash and log services
+service crashlogd /system/bin/crashlogd
+    class main
+    disabled
+
+service apk_logfs /system/bin/logcat -b system -b events -b main -b radio -K -n 20 -r5000 -v threadtime -f /data/logs/aplog
+    class main
+    disabled
+
+on ramconsole
+    powerctl reboot
+
+# crash and log services
+#service crashlogd /system/bin/crashmonitor
+#    class late_start
+#    user system
+#    group system log radio
+
+# LogConfig service
+service logconfig /system/bin/logconfig
+    class main
+    socket logconfig stream 0660 root system
+    disabled
+    oneshot

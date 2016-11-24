@@ -1,0 +1,4 @@
+# saltbay specific SPID based properties
+
+on property:ro.boot.spid=*:*:*:*:*:*
+	setprop ro.spid.saltbay 1

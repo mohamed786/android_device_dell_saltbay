@@ -1,0 +1,353 @@
+import init.common.rc
+import init.debug.rc
+import init.diag.rc
+import init.avc.rc
+#import init.wireless.rc #Temporarily disable wireless on Merrifield
+import init.wifi.rc
+#import init.widi.rc #Temporarily disable widi on Merrifield
+#import init.platform.usb.rc #modify by zhanglei74
+import init.gps.rc
+#import init.nfc.rc
+import init.bt.rc
+import init.modem.rc
+
+on init
+
+    write /sys/class/graphics/fbcon/cursor_blink 0
+    mkdir /data/system/ 0770 system system
+    mkdir /data/misc 01771 system misc
+    mkdir /data/misc/audio 0770 audio audio
+
+    # Insert graphics driver
+    insmod /lib/modules/tngdisp.ko
+    insmod /lib/modules/hdmi_audio.ko
+    chmod 0600 /dev/dri/controlD64
+
+    # Insert matrix for PnP measurements
+    insmod /lib/modules/matrix.ko
+    chmod 0640 /dev/matrix
+
+    write /proc/sys/kernel/hung_task_timeout_secs 0
+
+    chmod 0644 /system/framework/core.jar
+    chmod 0644 /system/framework/framework.jar
+    chmod 0644 /system/framework/apache-xml.jar
+    chmod 0644 /system/framework/ext.jar
+
+    setprop_from_sysfs /sys/kernel/fw_update/fw_info/ifwi_version sys.ifwi.version
+    setprop_from_sysfs /sys/kernel/fw_update/fw_info/chaabi_version sys.chaabi.version
+    setprop_from_sysfs /sys/kernel/fw_update/fw_info/mia_version sys.mia.version
+    setprop_from_sysfs /sys/kernel/fw_update/fw_info/scu_bs_version sys.scubs.version
+    setprop_from_sysfs /sys/kernel/fw_update/fw_info/scu_version sys.scu.version
+    setprop_from_sysfs /sys/kernel/fw_update/fw_info/ia32fw_version sys.ia32.version
+    setprop_from_sysfs /sys/kernel/fw_update/fw_info/valhooks_version sys.valhooks.version
+    setprop_from_sysfs /sys/kernel/fw_update/fw_info/punit_version sys.punit.version
+    setprop_from_sysfs /sys/kernel/fw_update/fw_info/ucode_version sys.ucode.version
+
+    #cpufreq boost to boot faster
+    chown system system /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+    chown system system /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq
+    chmod 0660 /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+    chmod 0660 /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq
+    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq 2133000
+    write /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq 2133000
+
+on boot
+#  Mount debugfs for systrace settings
+    mount debugfs none /sys/kernel/debug mode=0755
+#  Permissions for Thermal Management
+    chown system system /sys/class/power_supply/bq24192_charger/device/charge_current_limit
+    chown system system /sys/module/intel_mid_osip/parameters/force_shutdown_occured
+    chown system system /sys/module/intel_mid_osip/parameters/thermal_shutdown_occured
+    chown system system /sys/class/thermal/cooling_device0/cur_state
+    chown system system /sys/class/thermal/cooling_device1/cur_state
+    chown system system /sys/devices/platform/coretemp.0/temp2_threshold1
+    chown system system /sys/devices/platform/coretemp.0/temp2_threshold2
+    chown system system /sys/fps_throttle/notify
+    chown system system /sys/fps_throttle/handshake
+
+#   Offload specific properties
+
+#   audio.offload.capabilities
+#   A 32 bit value.  To be set in HEX
+#   |---------|--------|--------|------------|
+#   |Byte 3   |Byte 2  |Byte 1  |   Byte 0   |
+#   |Reserved |Reserved|Reserved|capabilities|
+#   |---------|--------|--------|------------|
+#   First byte (Byte 0) from the right represents capabilities
+#   Bit position  8th,7th,6th,5th,4th     3rd          2nd      1st
+#   Indication    Reserved for future  Multichannel   Effects   Video
+#   Second, Third and Fourth byte reserved for future use
+
+#   Set the HEX value by ORing the bits for each format/feature
+#   Example usage: To set only MP3 offload, value to be set is 100
+    setprop audio.offload.disable 0
+    setprop audio.offload.min.duration.secs 20
+    setprop offload.compress.device 1
+    setprop audio.device.name wm8958audio  // for PR2 devices
+    setprop audio.offload.capabilities 4
+
+# set scalability to 1 to enable it in system.
+    setprop audio.offload.scalability 0
+    setprop offload.mixer.volume.ctl.name "media0_in volume 0 volume"
+    setprop offload.mixer.mute.ctl.name "media0_in volume 0 mute"
+    setprop offload.mixer.volume.ramp.ctl.name "media0_in volume 0 rampduration"
+#   Set the vtsv device and card
+    setprop audio.vtsv.card wm8958audio
+    setprop audio.vtsv.device 5
+    setprop audio.vtsv.dsp_log 0
+
+# Enable/Disable deep buffer property for saltbay
+   setprop lpa.deepbuffer.enable 1
+
+    chown system system /sys/class/pci_bus/0000:00/device/0000:00:16.1/control
+    chown system system /sys/class/pci_bus/0000:00/device/0000:00:16.1/data
+    chown system system /sys/class/pci_bus/0000:00/device/0000:00:16.1/data_size
+
+# Define TCP buffer sizes for various networks
+#   ReadMin, ReadInitial, ReadMax, WriteMin, WriteInitial, WriteMax,
+    setprop net.tcp.buffersize.default 4096,87380,110208,4096,16384,110208
+    setprop net.tcp.buffersize.wifi    524288,1048576,2097152,262144,524288,1048576
+    setprop net.tcp.buffersize.lte     524288,1048576,2097152,262144,524288,1048576
+    setprop net.tcp.buffersize.umts    4094,87380,110208,4096,16384,110208
+    setprop net.tcp.buffersize.hspa    4094,87380,262144,4096,16384,262144
+    setprop net.tcp.buffersize.hsupa   4094,87380,262144,4096,16384,262144
+    setprop net.tcp.buffersize.hsdpa   4094,87380,262144,4096,16384,262144
+    setprop net.tcp.buffersize.hspap   32768,262144,1048576,4096,16384,262144
+    setprop net.tcp.buffersize.edge    4093,26280,110208,4096,16384,110208
+    setprop net.tcp.buffersize.gprs    4092,8760,65536,4096,8760,65536
+    setprop net.tcp.buffersize.evdo    4094,87380,262144,4096,16384,262144
+
+# Lte coexistence ( can be enabled the following: NRT / NRT+RT )
+# Enable LTE Coexistence NRT (Non Real Time)
+    setprop persist.service.cwsmgr.coex 1
+
+# Disable LTE coexistence RT (Real Time). Should be set to 0 to enable.
+    setprop persist.service.cwsmgr.nortcoex 1
+
+# Set this property so surfaceflinger is not started by system_init
+    setprop system_init.startsurfaceflinger 0
+
+# Reboot in COS on shutdown request when charger is plugged
+    setprop ro.rebootchargermode true
+
+#  Enable submix audio path for widi
+    setprop widi.audio.module submix
+
+#  Enable HDCP 2.1/2.2 for Widi
+    setprop widi.hdcp.enable auto
+
+# set a property to decide which way to implement widi, intel or aosp
+    setprop sys.widi.media.implementation aosp
+
+#  Enable frc stting for merr
+    setprop vppsettings.frc 1
+
+    #Change mmc read ahead size from 128 to 512 to reduce USB MTP read latencies
+    write /sys/block/mmcblk0/queue/read_ahead_kb 512
+
+    #set dirty background bytes to 24MB to reduce USB MTP write latencies
+    write /proc/sys/vm/dirty_background_bytes 25165824
+
+# Setup the zram
+
+    write /sys/block/zram0/disksize 256M
+    write /proc/sys/vm/swappiness 85
+    write /proc/sys/vm/page-cluster 0
+
+# Set recovery sysfs ownership to media
+   chown media media /sys/devices/pci0000:00/0000:00:0d.0/audio_recovery
+
+# Set debugfs ownership to media
+   chown media media /sys/kernel/debug/sst/fw_ssp_reg
+   chown media media /sys/kernel/debug/sst/shim_dump
+   chown media media /sys/kernel/debug/sst/sram_ia_lpe_mailbox
+   chown media media /sys/kernel/debug/sst/sram_lpe_checkpoint
+   chown media media /sys/kernel/debug/sst/sram_lpe_ia_mailbox
+   chown system system /sys/bus/i2c/drivers/bq24261_charger/8-006b/charge_led
+   chmod 0664 /sys/bus/i2c/drivers/bq24261_charger/8-006b/charge_led
+on post-fs-data
+    # we will remap this as /mnt/sdcard with the sdcard fuse tool
+    mkdir /data/media 0770 media_rw media_rw
+    chown media_rw media_rw /data/media
+    setprop ro.crypto.fuse_sdcard true
+
+    mkdir /data/misc/firmware 0770 system system
+
+    #Invoke fuel gauging helper binary to restore config data
+    chmod 0770 /dev/max170xx
+    chown system system /dev/max170xx
+    chown system system /sys/class/power_supply/max17047_battery/model_name
+    chown system system /sys/class/power_supply/max17047_battery/serial_number
+    symlink /dev/max170xx /dev/fg
+    start fg_conf
+
+    # Enable Dynamic Turbo feature
+    setprop persist.thermal.turbo.dynamic 0
+
+on post-fs
+    # Assume SMP uses shared cpufreq policy for all CPUs
+    chown system system /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+    chmod 0660 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+    chown system system /sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq
+    chmod 0660 /sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq
+
+# Performance tweaks for interactive governor
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/timer_rate
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/go_hispeed_load
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/boostpulse
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/touchboostpulse
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/touchboost_freq
+    chmod 0220 /sys/devices/system/cpu/cpufreq/interactive/touchboostpulse
+    chmod 0220 /sys/devices/system/cpu/cpufreq/interactive/boostpulse
+
+#disable timer_slack by default on Merrifield
+    write /sys/devices/system/cpu/cpufreq/interactive/timer_slack -1
+
+    # Volume keys wakeup capability
+    chmod 0664 /sys/devices/platform/gpio-keys/enabled_wakeup
+    chmod 0664 /sys/devices/platform/gpio-keys/disabled_wakeup
+    chown media system /sys/devices/platform/gpio-keys/enabled_wakeup
+    chown media system /sys/devices/platform/gpio-keys/disabled_wakeup
+
+    # Insert touchscreen module
+    insmod /lib/modules/rmi4.ko
+
+#  Permissions for Sensors
+    # accelerometer lsm303d
+    chown system system /sys/bus/i2c/devices/6-0018/enable_device
+    chown system system /sys/bus/i2c/devices/6-0018/pollrate_ms
+
+    # accelerometer lsm303d
+    chown system system /sys/bus/i2c/devices/6-001e/accelerometer/enable_device
+    chown system system /sys/bus/i2c/devices/6-001e/accelerometer/pollrate_ms
+
+    #barometer lps331ap
+    chown system system /sys/bus/i2c/devices/5-005c/enable
+    chown system system /sys/bus/i2c/devices/5-005c/poll
+
+    #compass lsm303d
+    chown system system /sys/bus/i2c/devices/6-001e/magnetometer/enable_device
+    chown system system /sys/bus/i2c/devices/6-001e/magnetometer/pollrate_ms
+
+    #pjn add als/ps rohmbh1721 	210
+    chown system system /sys/bus/i2c/devices/6-0023/enable_als
+
+    #als/ps apds990x
+    chmod 0755 /dev/apds990x_lsensor
+    chmod 0755 /dev/apds990x_psensor
+
+    # SEP (Chaabi)
+    chown 3700 3700 /dev/dx_sep_q0
+    chmod 0660 /dev/dx_sep_q0
+    chown 3700 3700 /dev/dx_sep_q1
+    chmod 0660 /dev/dx_sep_q1
+
+    #Gyroscope l3gd20_gyr
+    chown system system /sys/bus/i2c/devices/6-006b/enable_device
+    chown system system /sys/bus/i2c/devices/6-006b/pollrate_ms
+
+# Permissions for LED
+    chown system system /sys/class/leds/intel_keypad_led/brightness
+
+# Permissions for BCU sysfs interface and make generic path to access by apps
+    chown system system /sys/devices/platform/bcove_bcu/camflash_ctrl
+    symlink /sys/devices/platform/bcove_bcu /dev/bcu
+
+service fg_conf /system/bin/fg_conf -w
+    group system
+    oneshot
+    disabled
+
+on property:init.svc.pvrsrvctl=stopped
+    # Insert devfreq driver
+    insmod /lib/modules/dfrgx.ko
+
+service surfaceflinger /system/bin/surfaceflinger
+    class main
+    user system
+    group graphics
+    onrestart restart zygote
+
+service drm /system/bin/drmserver
+    class main
+    user drm
+    group drm system inet drmrpc sdcard_r security
+
+service media /system/bin/mediaserver
+    class main
+    user media
+    group system audio camera media_rw sdcard_rw inet net_bt net_bt_admin net_bw_acct drmrpc net_raw security radio mediadrm
+    ioprio rt 4
+
+#service sensorhubd /system/bin/sensorhubd
+#    class main
+#    user system
+#    group system
+#    socket sensorhubd stream 666 system system
+
+on property:sys.boot_completed=1
+#  Permissions for Thermal Management
+    chown system system /sys/class/thermal/cooling_device2/cur_state
+    chown system system /sys/class/thermal/cooling_device3/cur_state
+
+    #Restore the cpufreq to default maintained by governor
+    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq 533000
+    write /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq 533000
+
+on charger
+    mount_all /fstab.charger.${ro.hardware}
+
+    setprop ro.boot.min.cap 2
+    start watchdogd
+    insmod /lib/modules/rmi4.ko boot_mode=1
+
+    # Invoke fuel gauging helper binary to restore config data
+    chmod 0770 /dev/max170xx
+    chown system system /dev/max170xx
+    symlink /dev/max170xx /dev/fg
+    wait /system/bin/fg_conf
+    start fg_conf
+
+    insmod /lib/modules/atomisp-css2400b0_v21.ko dypool_enable=n repool_pgnr=0 dypool_pgnr=0
+    chmod 0664 /sys/devices/pci0000:00/0000:00:10.0/hsic_enable
+    write /sys/devices/pci0000:00/0000:00:10.0/hsic_enable 0
+	
+#xiangwenxi add for psensor detect.    
+service rilexserver /system/bin/rilexbydserver /dev/gsmtty14
+    class core
+    socket rilex stream 660 system system
+    user root
+    group system
+    disabled
+    oneshot
+
+service bydpsensor /system/bin/bydpsensordetect
+    class main
+    user root
+    group system
+    disabled
+    oneshot
+
+service mkswap /system/bin/mkswap /dev/block/zram0
+    class main
+    oneshot
+        
+service swapon /system/bin/swapon /dev/block/zram0
+    class main
+    oneshot
+
+on property:hw.rilexserver.start=1
+		start rilexserver
+				
+on property:hw.rilexserver.start=0
+		stop rilexserver
+
+on property:hw.psensor.start=1
+		start bydpsensor
+								
+on property:hw.psensor.start=0
+		stop bydpsensor
+
+setprop hw.psensor.value 0
+
